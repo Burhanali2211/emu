@@ -14,6 +14,15 @@ import {
 } from 'lucide-react';
 import { NetworkStatus } from '@/components/ui/network-status';
 import { SensorChart, BatteryChart, TemperatureChart, DistanceChart } from '@/components/ui/sensor-chart';
+import {
+  DataUnavailable,
+  MatrixRain,
+  TerminalLoader,
+  GlitchText,
+  ScanningAnimation,
+  BinaryRain,
+  HackerProgress
+} from '@/components/ui/hacker-graphics';
 import { AIChat } from '@/components/AIChat';
 import { CommandQueueItem } from '@/types/robot';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,61 +76,72 @@ const StatCard = ({
   </HolographicCard>
 );
 
-// System Health Monitor Component
-const SystemHealthMonitor = () => {
-  const [systemStats, setSystemStats] = useState({
-    cpu: 45,
-    memory: 62,
-    network: 89,
-    storage: 34
-  });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSystemStats({
-        cpu: Math.floor(Math.random() * 100),
-        memory: Math.floor(Math.random() * 100),
-        network: Math.floor(Math.random() * 100),
-        storage: Math.floor(Math.random() * 100)
-      });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+// Enhanced System Health Monitor Component with Real Data
+const SystemHealthMonitor = ({ systemStats, isConnected }: {
+  systemStats: any;
+  isConnected: boolean;
+}) => {
+  if (!isConnected) {
+    return (
+      <DataUnavailable
+        title="SYSTEM MONITOR"
+        message="ESP32 SYSTEM OFFLINE - RECONNECTING..."
+        className="h-full"
+      />
+    );
+  }
 
   return (
-    <HolographicCard variant="glow" className="p-6">
-      <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
-        <Activity className="w-5 h-5" />
-        System Health
-      </h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-300">CPU</span>
-            <span className="text-blue-400">{systemStats.cpu}%</span>
+    <HolographicCard variant="glow" className="p-6 relative overflow-hidden">
+      <ScanningAnimation className="absolute inset-0 opacity-20" />
+      <div className="relative z-10">
+        <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5" />
+          <GlitchText intensity="low">System Health</GlitchText>
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-300">CPU</span>
+              <span className="text-blue-400">{systemStats.cpu}%</span>
+            </div>
+            <HackerProgress value={systemStats.cpu} label="PROCESSING" />
           </div>
-          <Progress value={systemStats.cpu} className="h-2" />
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-300">Memory</span>
+              <span className="text-green-400">{systemStats.memory}%</span>
+            </div>
+            <HackerProgress value={systemStats.memory} label="MEMORY" />
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-300">Network</span>
+              <span className="text-cyan-400">{systemStats.network}%</span>
+            </div>
+            <HackerProgress value={systemStats.network} label="NETWORK" />
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-300">Storage</span>
+              <span className="text-purple-400">{systemStats.storage}%</span>
+            </div>
+            <HackerProgress value={systemStats.storage} label="STORAGE" />
+          </div>
         </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-300">Memory</span>
-            <span className="text-green-400">{systemStats.memory}%</span>
+
+        {/* System Temperature */}
+        <div className="mt-4 pt-4 border-t border-slate-700">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-300">System Temp</span>
+            <span className={`${systemStats.temperature > 60 ? 'text-red-400' : 'text-green-400'}`}>
+              {systemStats.temperature}°C
+            </span>
           </div>
-          <Progress value={systemStats.memory} className="h-2" />
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-300">Network</span>
-            <span className="text-cyan-400">{systemStats.network}%</span>
-          </div>
-          <Progress value={systemStats.network} className="h-2" />
-        </div>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-300">Storage</span>
-            <span className="text-purple-400">{systemStats.storage}%</span>
-          </div>
-          <Progress value={systemStats.storage} className="h-2" />
+          <HackerProgress
+            value={(systemStats.temperature / 80) * 100}
+            label="THERMAL"
+          />
         </div>
       </div>
     </HolographicCard>
@@ -355,10 +375,16 @@ const LiveActivityFeed = ({ commandLogs }: { commandLogs: string[] }) => {
 };
 
 // Enhanced Mission Control Component
-const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
+const MissionControl = ({
+  onRun,
+  missionStatus,
+  availability
+}: {
+  onRun: (action: any) => void;
+  missionStatus: any;
+  availability: any;
+}) => {
   const [selectedMission, setSelectedMission] = useState<string>('');
-  const [activeMission, setActiveMission] = useState<string | null>(null);
-  const [missionProgress, setMissionProgress] = useState(0);
 
   const missions = [
     {
@@ -405,21 +431,11 @@ const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
   };
 
   const startMission = (missionId: string) => {
-    setActiveMission(missionId);
-    setMissionProgress(0);
     onRun({ action: 'mission', type: missionId });
+  };
 
-    // Simulate mission progress
-    const interval = setInterval(() => {
-      setMissionProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setActiveMission(null);
-          return 0;
-        }
-        return prev + 10;
-      });
-    }, 1000);
+  const stopMission = () => {
+    onRun({ action: 'stop_mission' });
   };
 
   return (
@@ -427,22 +443,42 @@ const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2">
           <Target className="w-5 h-5" />
-          Mission Control
+          <GlitchText intensity="low">Mission Control</GlitchText>
         </h3>
-        {activeMission && (
+        {missionStatus.active && (
           <Badge variant="outline" className="text-xs animate-pulse">
-            Active: {missions.find(m => m.id === activeMission)?.name}
+            Active: {missions.find(m => m.id === missionStatus.type)?.name}
           </Badge>
         )}
       </div>
 
-      {activeMission && (
+      {/* System Health Check */}
+      <div className="mb-4 p-3 bg-slate-800/50 border border-slate-600/50 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-slate-300">System Health</span>
+          <span className={`text-sm ${
+            availability.getSystemHealth().overall > 80 ? 'text-green-400' :
+            availability.getSystemHealth().overall > 60 ? 'text-yellow-400' : 'text-red-400'
+          }`}>
+            {availability.getSystemHealth().status.toUpperCase()}
+          </span>
+        </div>
+        <HackerProgress
+          value={availability.getSystemHealth().overall}
+          label="SYSTEM STATUS"
+        />
+      </div>
+
+      {missionStatus.active && (
         <div className="mb-4 p-3 bg-purple-600/20 border border-purple-400/30 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-purple-300">Mission Progress</span>
-            <span className="text-sm text-purple-400">{missionProgress}%</span>
+            <span className="text-sm text-purple-400">{Math.round(missionStatus.progress)}%</span>
           </div>
-          <Progress value={missionProgress} className="h-2" />
+          <HackerProgress
+            value={missionStatus.progress}
+            label="MISSION STATUS"
+          />
         </div>
       )}
 
@@ -454,7 +490,7 @@ const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
               selectedMission === mission.id
                 ? 'bg-purple-600/30 border-purple-400/50'
                 : 'bg-slate-800/30 border-slate-700/50 hover:bg-slate-700/30'
-            } ${activeMission === mission.id ? 'ring-2 ring-purple-400/50' : ''}`}
+            } ${missionStatus.active && missionStatus.type === mission.id ? 'ring-2 ring-purple-400/50' : ''}`}
             onClick={() => setSelectedMission(mission.id)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -471,7 +507,7 @@ const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
                 <div className="text-xs text-slate-400 mb-1">{mission.description}</div>
                 <div className="text-xs text-slate-500">Duration: {mission.duration}</div>
               </div>
-              {selectedMission === mission.id && !activeMission && (
+              {selectedMission === mission.id && !missionStatus.active && (
                 <Button
                   size="sm"
                   onClick={(e) => {
@@ -479,19 +515,19 @@ const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
                     startMission(mission.id);
                   }}
                   className="text-xs"
+                  disabled={availability.getSystemHealth().overall < 50}
                 >
                   <Play className="w-3 h-3 mr-1" />
                   Start
                 </Button>
               )}
-              {activeMission === mission.id && (
+              {missionStatus.active && missionStatus.type === mission.id && (
                 <Button
                   size="sm"
                   variant="destructive"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setActiveMission(null);
-                    setMissionProgress(0);
+                    stopMission();
                   }}
                   className="text-xs"
                 >
@@ -532,7 +568,18 @@ const MissionControl = ({ onRun }: { onRun: (action: any) => void }) => {
 };
 
 const DashboardPage = () => {
-  const { isConnected, robotStatus, sensorData, commandQueue, sendMessage, addLog, commandLogs, sensorHistory } = useRobot();
+  const {
+    isConnected,
+    robotStatus,
+    sensorData,
+    commandQueue,
+    sendMessage,
+    addLog,
+    commandLogs,
+    sensorHistory,
+    simulation,
+    availability
+  } = useRobot();
 
   const formatUptime = (seconds: number) => {
     const d = Math.floor(seconds / (3600*24));
@@ -542,8 +589,49 @@ const DashboardPage = () => {
   };
 
   const handleQuickAction = (action: any) => {
-    sendMessage({ type: 'command', data: action });
-    addLog(`Quick Action: ${action.action}`);
+    // Validate action based on component availability
+    if (action.action === 'mission') {
+      const systemHealth = availability.getSystemHealth();
+      if (systemHealth.overall < 50) {
+        addLog(`Mission Failed: System health too low (${systemHealth.overall}%)`);
+        return;
+      }
+      simulation.startMission(action.type, 300);
+      addLog(`Mission Started: ${action.type}`);
+    } else if (action.action === 'stop_mission') {
+      simulation.stopMission();
+      addLog('Mission Stopped');
+    } else if (action.action === 'emergency_stop') {
+      simulation.stopMission();
+      sendMessage({ type: 'command', data: { action: 'move', direction: 'stop' } });
+      addLog('EMERGENCY STOP ACTIVATED');
+    } else if (action.action === 'return_home') {
+      if (!availability.isComponentAvailable('ultrasonic')) {
+        addLog('Return Home Failed: Navigation sensors offline');
+        return;
+      }
+      sendMessage({ type: 'command', data: action });
+      addLog('Returning to home position');
+    } else {
+      // Validate component availability for specific actions
+      const requiredComponents: { [key: string]: string[] } = {
+        'move': ['motors'],
+        'scan': ['ultrasonic'],
+        'buzzer': ['buzzer'],
+        'expression': ['oled']
+      };
+
+      const required = requiredComponents[action.action] || [];
+      const unavailable = required.filter(comp => !availability.isComponentAvailable(comp));
+
+      if (unavailable.length > 0) {
+        addLog(`Action Failed: ${unavailable.join(', ')} offline`);
+        return;
+      }
+
+      sendMessage({ type: 'command', data: action });
+      addLog(`Quick Action: ${action.action}`);
+    }
   };
 
   const getBatteryTrend = () => {
@@ -573,23 +661,110 @@ const DashboardPage = () => {
         </motion.p>
       </div>
 
-      {/* Critical Alert */}
+      {/* Critical Alerts */}
       <AnimatePresence>
         {sensorData?.smoke && robotStatus.components.smoke && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="mb-6 bg-red-500/20 border border-red-500/50 p-4 rounded-lg flex items-center gap-4 animate-pulse"
+            className="mb-6 bg-red-500/20 border border-red-500/50 p-4 rounded-lg flex items-center gap-4 animate-pulse relative overflow-hidden"
           >
+            <MatrixRain intensity="high" className="absolute inset-0 opacity-20" />
             <AlertTriangle className="text-red-400" size={32} />
-            <div>
-              <h3 className="font-bold text-red-300">SMOKE DETECTED</h3>
+            <div className="flex-1">
+              <GlitchText className="font-bold text-red-300 text-lg">
+                SMOKE DETECTED
+              </GlitchText>
               <p className="text-sm text-red-400">Immediate attention required. Air quality is hazardous.</p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => simulation.clearEmergency()}
+              className="text-xs"
+            >
+              Clear Alert
+            </Button>
+          </motion.div>
+        )}
+
+        {(sensorData?.battery ?? 0) < 10 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="mb-6 bg-yellow-500/20 border border-yellow-500/50 p-4 rounded-lg flex items-center gap-4 animate-pulse"
+          >
+            <Battery className="text-yellow-400" size={32} />
+            <div className="flex-1">
+              <GlitchText className="font-bold text-yellow-300 text-lg">
+                CRITICAL BATTERY LEVEL
+              </GlitchText>
+              <p className="text-sm text-yellow-400">Battery at {sensorData?.battery}%. Return to charging station immediately.</p>
+            </div>
+          </motion.div>
+        )}
+
+        {(sensorData?.ultrasonic ?? 100) < 5 && availability.isComponentAvailable('ultrasonic') && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="mb-6 bg-orange-500/20 border border-orange-500/50 p-4 rounded-lg flex items-center gap-4 animate-pulse"
+          >
+            <Radar className="text-orange-400" size={32} />
+            <div className="flex-1">
+              <GlitchText className="font-bold text-orange-300 text-lg">
+                OBSTACLE DETECTED
+              </GlitchText>
+              <p className="text-sm text-orange-400">Object detected at {sensorData?.ultrasonic?.toFixed(1)}cm. Navigation blocked.</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Emergency Simulation Controls (only when not connected) */}
+      {!isConnected && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <HolographicCard variant="neon" className="p-4">
+            <h3 className="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Emergency Simulation Controls
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => simulation.triggerEmergency('smoke')}
+                className="text-xs"
+              >
+                Trigger Smoke
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => simulation.triggerEmergency('low_battery')}
+                className="text-xs"
+              >
+                Low Battery
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => simulation.triggerEmergency('obstacle')}
+                className="text-xs"
+              >
+                Obstacle
+              </Button>
+            </div>
+          </HolographicCard>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Left Column - Main Stats and Controls */}
@@ -644,26 +819,45 @@ const DashboardPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <HolographicCard variant="glow" className="p-6 flex flex-col items-center">
-              <BatteryGauge
-                value={sensorData?.battery ?? 0}
-                size={120}
-                animated={true}
-              />
+            {/* Battery Gauge - Always Available */}
+            <HolographicCard variant="glow" className="p-6 flex flex-col items-center relative overflow-hidden">
+              {availability.isComponentAvailable('battery') || sensorData?.battery !== undefined ? (
+                <BatteryGauge
+                  value={sensorData?.battery ?? 0}
+                  size={120}
+                  animated={true}
+                />
+              ) : (
+                <DataUnavailable
+                  title="BATTERY"
+                  message="POWER MONITORING OFFLINE"
+                  className="w-full h-32"
+                  showMatrix={false}
+                />
+              )}
             </HolographicCard>
 
-            {robotStatus.components.dht && (
-              <HolographicCard variant="neon" className="p-6 flex flex-col items-center">
+            {/* Temperature Gauge */}
+            <HolographicCard variant="neon" className="p-6 flex flex-col items-center relative overflow-hidden">
+              {availability.isComponentAvailable('dht') && robotStatus.components.dht ? (
                 <TemperatureGauge
                   value={sensorData?.temperature ?? 0}
                   size={120}
                   animated={true}
                 />
-              </HolographicCard>
-            )}
+              ) : (
+                <DataUnavailable
+                  title="TEMPERATURE"
+                  message="DHT22 SENSOR OFFLINE"
+                  className="w-full h-32"
+                  showMatrix={false}
+                />
+              )}
+            </HolographicCard>
 
-            {robotStatus.components.ultrasonic && (
-              <HolographicCard variant="pulse" className="p-6 flex flex-col items-center">
+            {/* Distance Gauge */}
+            <HolographicCard variant="pulse" className="p-6 flex flex-col items-center relative overflow-hidden">
+              {availability.isComponentAvailable('ultrasonic') && robotStatus.components.ultrasonic ? (
                 <CircularGauge
                   value={sensorData?.ultrasonic ?? 0}
                   max={200}
@@ -673,8 +867,15 @@ const DashboardPage = () => {
                   unit="cm"
                   animated={true}
                 />
-              </HolographicCard>
-            )}
+              ) : (
+                <DataUnavailable
+                  title="ULTRASONIC"
+                  message="HC-SR04 SENSOR OFFLINE"
+                  className="w-full h-32"
+                  showMatrix={false}
+                />
+              )}
+            </HolographicCard>
           </motion.div>
 
           {/* Additional Sensor Data */}
@@ -724,7 +925,10 @@ const DashboardPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <SystemHealthMonitor />
+            <SystemHealthMonitor
+              systemStats={simulation.systemStats}
+              isConnected={isConnected}
+            />
           </motion.div>
 
           {/* Sensor Charts */}
@@ -734,28 +938,53 @@ const DashboardPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            {sensorHistory?.battery && (
+            {/* Battery Chart */}
+            {sensorHistory?.battery && sensorHistory.battery.length > 0 ? (
               <BatteryChart
                 data={sensorHistory.battery}
                 type="area"
                 height={180}
               />
+            ) : (
+              <DataUnavailable
+                title="BATTERY HISTORY"
+                message="NO HISTORICAL DATA AVAILABLE"
+                className="h-48"
+              />
             )}
-            {sensorHistory?.temperature && robotStatus.components.dht && (
+
+            {/* Temperature Chart */}
+            {sensorHistory?.temperature && robotStatus.components.dht && availability.isComponentAvailable('dht') ? (
               <TemperatureChart
                 data={sensorHistory.temperature}
                 type="line"
                 height={180}
               />
+            ) : (
+              <DataUnavailable
+                title="TEMPERATURE HISTORY"
+                message="DHT22 SENSOR DISCONNECTED"
+                className="h-48"
+              />
             )}
-            {sensorHistory?.ultrasonic && robotStatus.components.ultrasonic && (
+
+            {/* Distance Chart */}
+            {sensorHistory?.ultrasonic && robotStatus.components.ultrasonic && availability.isComponentAvailable('ultrasonic') ? (
               <DistanceChart
                 data={sensorHistory.ultrasonic}
                 type="area"
                 height={180}
               />
+            ) : (
+              <DataUnavailable
+                title="DISTANCE HISTORY"
+                message="ULTRASONIC SENSOR OFFLINE"
+                className="h-48"
+              />
             )}
-            {sensorHistory?.humidity && robotStatus.components.dht && (
+
+            {/* Humidity Chart */}
+            {sensorHistory?.humidity && robotStatus.components.dht && availability.isComponentAvailable('dht') ? (
               <SensorChart
                 data={sensorHistory.humidity}
                 title="Humidity"
@@ -764,20 +993,73 @@ const DashboardPage = () => {
                 type="line"
                 height={180}
               />
+            ) : (
+              <DataUnavailable
+                title="HUMIDITY HISTORY"
+                message="DHT22 SENSOR DISCONNECTED"
+                className="h-48"
+              />
             )}
           </motion.div>
 
-          {/* Network Status */}
+          {/* Network Status & Mission Status */}
           <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
           >
             <NetworkStatus
               isConnected={isConnected}
-              signalStrength={85}
+              signalStrength={simulation.systemStats.network}
               networkType="wifi"
             />
+
+            {/* Mission Status */}
+            <HolographicCard variant="pulse" className="p-6 relative overflow-hidden">
+              {simulation.missionStatus.active ? (
+                <>
+                  <ScanningAnimation className="absolute inset-0 opacity-30" />
+                  <div className="relative z-10">
+                    <h3 className="text-lg font-semibold text-purple-400 mb-4 flex items-center gap-2">
+                      <Target className="w-5 h-5" />
+                      <GlitchText>Active Mission</GlitchText>
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">Type:</span>
+                        <Badge variant="outline" className="text-purple-400">
+                          {simulation.missionStatus.type?.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-300">Progress</span>
+                          <span className="text-purple-400">{Math.round(simulation.missionStatus.progress)}%</span>
+                        </div>
+                        <HackerProgress
+                          value={simulation.missionStatus.progress}
+                          label="MISSION PROGRESS"
+                        />
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">ETA:</span>
+                        <span className="text-cyan-400">{Math.max(0, simulation.missionStatus.eta)}s</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Target className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+                  <h3 className="text-lg font-semibold text-slate-400 mb-2">No Active Mission</h3>
+                  <TerminalLoader
+                    text="AWAITING MISSION ASSIGNMENT..."
+                    speed={150}
+                  />
+                </div>
+              )}
+            </HolographicCard>
           </motion.div>
         </div>
 
@@ -807,7 +1089,11 @@ const DashboardPage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <MissionControl onRun={handleQuickAction} />
+            <MissionControl
+              onRun={handleQuickAction}
+              missionStatus={simulation.missionStatus}
+              availability={availability}
+            />
           </motion.div>
         </div>
 

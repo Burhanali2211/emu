@@ -3,6 +3,8 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useVoiceControl } from '@/hooks/useVoiceControl';
 import { useSensorHistory } from '@/hooks/useSensorHistory';
 import { useGemini } from '@/hooks/useGemini';
+import { useDataSimulation } from '@/hooks/useDataSimulation';
+import { useComponentAvailability } from '@/hooks/useComponentAvailability';
 import { toast } from "sonner";
 import { RobotStatus, SensorData, CommandQueueItem, WebSocketMessage, Routine, GeminiResponse, ComponentStatus } from '@/types/robot';
 
@@ -49,6 +51,38 @@ interface RobotContextType {
   runRoutine: (routine: Routine) => void;
   // Component Toggles
   toggleComponent: (component: keyof ComponentStatus, enabled: boolean) => void;
+  // Data Simulation
+  simulation: {
+    systemStats: {
+      cpu: number;
+      memory: number;
+      network: number;
+      storage: number;
+      temperature: number;
+      uptime: number;
+    };
+    missionStatus: {
+      active: boolean;
+      type: string | null;
+      progress: number;
+      eta: number;
+    };
+    startMission: (type: string, duration?: number) => void;
+    stopMission: () => void;
+    triggerEmergency: (type: 'smoke' | 'low_battery' | 'obstacle') => void;
+    clearEmergency: () => void;
+    isSimulating: boolean;
+  };
+  // Component Availability
+  availability: {
+    getComponentStatus: (componentName: string) => 'online' | 'offline' | 'degraded' | 'error';
+    getComponentReliability: (componentName: string) => number;
+    isComponentAvailable: (componentName: string) => boolean;
+    getAvailableComponents: () => string[];
+    getOfflineComponents: () => string[];
+    getSystemHealth: () => { overall: number; status: string };
+    getComponentDiagnostics: (componentName: string) => any;
+  };
 }
 
 const RobotContext = createContext<RobotContextType | undefined>(undefined);
@@ -85,7 +119,23 @@ export const RobotProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCommandLogs(prev => [`[${timestamp}] ${log}`, ...prev].slice(0, 100));
   }, []);
 
-  const { isConnected, sensorData, robotStatus, error: wsError, commandQueue, sendMessage: wsSendMessage } = useWebSocket(config.websocketUrl, addLog);
+  const { isConnected, sensorData: realSensorData, robotStatus: realRobotStatus, error: wsError, commandQueue, sendMessage: wsSendMessage } = useWebSocket(config.websocketUrl, addLog);
+
+  // Data simulation system
+  const simulation = useDataSimulation(isConnected, {
+    enabled: true,
+    updateInterval: 1000,
+    realisticVariation: true,
+    componentFailureChance: 0.02
+  });
+
+  // Use real data when connected, simulated data when not
+  const sensorData = isConnected ? realSensorData : simulation.simulatedSensorData;
+  const robotStatus = isConnected ? realRobotStatus : simulation.simulatedRobotStatus;
+
+  // Component availability detection
+  const availability = useComponentAvailability(isConnected, sensorData, robotStatus.components);
+
   const { history: sensorHistory } = useSensorHistory(sensorData);
   
   const sendMessage = useCallback((messageData: Omit<WebSocketMessage, 'id' | 'timestamp'>) => {
@@ -184,7 +234,25 @@ export const RobotProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     robotExpression, setRobotExpression,
     commandLogs, addLog,
     routines, saveRoutine, deleteRoutine, runRoutine,
-    toggleComponent
+    toggleComponent,
+    simulation: {
+      systemStats: simulation.systemStats,
+      missionStatus: simulation.missionStatus,
+      startMission: simulation.startMission,
+      stopMission: simulation.stopMission,
+      triggerEmergency: simulation.triggerEmergency,
+      clearEmergency: simulation.clearEmergency,
+      isSimulating: simulation.isSimulating
+    },
+    availability: {
+      getComponentStatus: availability.getComponentStatus,
+      getComponentReliability: availability.getComponentReliability,
+      isComponentAvailable: availability.isComponentAvailable,
+      getAvailableComponents: availability.getAvailableComponents,
+      getOfflineComponents: availability.getOfflineComponents,
+      getSystemHealth: availability.getSystemHealth,
+      getComponentDiagnostics: availability.getComponentDiagnostics
+    }
   };
 
   return <RobotContext.Provider value={value}>{children}</RobotContext.Provider>;
